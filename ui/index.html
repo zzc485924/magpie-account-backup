@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Where a window blocks the page folder's scripts (magpie's page policy
+     names the folder; some builds name none, so nothing in the folder
+     runs), this still opens the service: a refresh is a navigation, not a
+     fetch, and no policy directive stops it. With scripts, boot.js gets
+     there first. -->
+<meta http-equiv="refresh" content="3;url=http://127.0.0.1:39872/app.html">
+<title>账号备份</title>
+<script src="_magpie/bridge.js"></script>
+<script src="boot.js" defer></script>
+</head>
+<body>
+<p id="abBoot">正在启动账号备份…</p>
+<p><small>这个页面会打开插件自己的本地服务；如果刚装上，重新打开一次即可。</small></p>
+</body>
+</html>

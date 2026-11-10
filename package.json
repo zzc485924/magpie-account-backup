@@ -1,0 +1,33 @@
+{
+  "name": "magpie-account-backup",
+  "version": "1.0.1",
+  "description": "Export a .magpie-backup with only the subscription and plugin sign-ins you pick",
+  "type": "module",
+  "main": "src/host.js",
+  "magpie": {
+    "page": {
+      "title": "Account Backup",
+      "titles": {
+        "zh": "账号备份",
+        "zh-TW": "帳號備份",
+        "ja": "アカウントのバックアップ",
+        "de": "Kontosicherung"
+      },
+      "file": "ui/index.html",
+      "icon": "ui/icon.svg",
+      "service": {
+        "port": 39872,
+        "option": "port"
+      }
+    },
+    "permissions": []
+  },
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.0"
+  },
+  "files": [
+    "src",
+    "ui"
+  ]
+}

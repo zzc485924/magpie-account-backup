@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="ab-token" content="__AB_TOKEN__">
+<title>账号备份</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfa; --fg: #1d1d1f; --muted: #6b6b70; --line: #e3e3e0;
+    --card: #ffffff; --accent: #2f6f4f; --accent-fg: #ffffff;
+    --warn: #8a5a00; --bad: #a02b2b; --chip: #f0f0ee;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --fg: #ececec; --muted: #9a9aa2; --line: #303135;
+      --card: #1f2023; --accent: #6fb08c; --accent-fg: #10221a;
+      --warn: #e0b25f; --bad: #ef8b8b; --chip: #2a2b2f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body {
+    font: 13px/1.55 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    padding: 18px 20px 28px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; letter-spacing: .01em; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px;
+  }
+  .card > h2 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+  label.check { display: flex; gap: 9px; align-items: flex-start; padding: 5px 0; cursor: pointer; }
+  label.check input { margin: 2px 0 0; accent-color: var(--accent); }
+  label.check .what { display: block; }
+  label.check .hint { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: block; margin: 10px 0 0; }
+  .field span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input[type=password], input[type=search] {
+    width: 100%; padding: 7px 9px; font: inherit; color: inherit;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  }
+  input[type=password]:focus, input[type=search]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .picker[hidden] { display: none; }
+  .picker-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .picker-head .search { flex: 1 1 200px; min-width: 160px; }
+  .count { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .linkbtn {
+    border: 0; background: none; color: var(--accent); font: inherit;
+    cursor: pointer; padding: 2px 4px; border-radius: 6px;
+  }
+  .linkbtn:hover { background: var(--chip); }
+  .list { border: 1px solid var(--line); border-radius: 9px; max-height: 360px; overflow: auto; }
+  .vendor { border-bottom: 1px solid var(--line); }
+  .vendor:last-child { border-bottom: 0; }
+  .vrow {
+    display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 6px 10px;
+    background: var(--card); position: sticky; top: 0; z-index: 1;
+  }
+  .vrow input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+  .vname { font-weight: 600; }
+  .vid { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; opacity: .85; }
+  .grow { flex: 1 1 auto; }
+  .vcount { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fold {
+    border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit;
+    padding: 2px 6px; border-radius: 6px; min-width: 24px;
+  }
+  .fold:hover { background: var(--chip); }
+  .accounts { padding: 2px 0 6px; }
+  .accounts[hidden] { display: none; }
+  .arow {
+    display: flex; align-items: center; gap: 9px; min-height: 30px;
+    padding: 4px 10px 4px 30px;
+  }
+  .arow input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+  .arow.blocked { opacity: .62; }
+  .aname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip {
+    font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--chip);
+    color: var(--muted); white-space: nowrap;
+  }
+  .reason { color: var(--warn); font-size: 12px; white-space: nowrap; }
+  .eye {
+    border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit;
+    padding: 1px 5px; border-radius: 6px;
+  }
+  .eye:hover { background: var(--chip); }
+  .empty { padding: 16px; color: var(--muted); text-align: center; }
+  .bar { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .bar .grow { flex: 1 1 auto; }
+  button.primary {
+    background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 8px;
+    padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.primary[disabled] { opacity: .5; cursor: default; }
+  button.ghost {
+    background: none; border: 1px solid var(--line); color: inherit; border-radius: 8px;
+    padding: 8px 14px; font: inherit; cursor: pointer;
+  }
+  .msg { margin-top: 10px; font-size: 12.5px; }
+  .msg.bad { color: var(--bad); }
+  .msg.warn { color: var(--warn); }
+  .result { border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px; background: var(--card); }
+  .result .path { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; word-break: break-all; }
+  .result .nums { color: var(--muted); margin-top: 6px; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>账号备份</h1>
+<p class="sub">按供应商或账号挑选，导出只包含这些登录信息的 <code>.magpie-backup</code>；导出后用 Magpie 自己的「设置 → 同步与备份 → 导入」还原。</p>
+
+<div class="card">
+  <h2>包含什么</h2>
+  <label class="check">
+    <input type="checkbox" id="optKeys" checked>
+    <span class="what">供应商与 API Key
+      <span class="hint">provider、密钥、设置、profiles、各 agent 的模型设置。</span>
+    </span>
+  </label>
+  <label class="check">
+    <input type="checkbox" id="optLibrary" checked>
+    <span class="what">资源库
+      <span class="hint">说明、MCP、技能、hooks、子代理这些库内容。</span>
+    </span>
+  </label>
+  <label class="check">
+    <input type="checkbox" id="optSignIns" checked>
+    <span class="what">登录信息（订阅账号与插件的登录）
+      <span class="hint">勾上后可以按账号挑选：文件里带这些账号的凭证，谁拿到文件和口令就能用它们。</span>
+    </span>
+  </label>
+</div>
+
+<div class="card picker" id="picker">
+  <h2>选择要带走的账号</h2>
+  <div class="picker-head">
+    <input type="search" class="search" id="q" placeholder="搜索供应商或账号…" autocomplete="off">
+    <span class="count" id="count">已选 0/0</span>
+    <button class="linkbtn" id="all" type="button">全选</button>
+    <button class="linkbtn" id="none" type="button">全不选</button>
+  </div>
+  <div class="list" id="list"></div>
+  <p class="note" id="pickerNote"></p>
+</div>
+
+<div class="card">
+  <h2>口令</h2>
+  <div class="grid2">
+    <label class="field"><span>口令（至少 8 个字符）</span><input type="password" id="pass1" autocomplete="new-password"></label>
+    <label class="field"><span>再输入一次</span><input type="password" id="pass2" autocomplete="new-password"></label>
+  </div>
+  <div class="bar">
+    <span class="grow"></span>
+    <button class="ghost" id="reload" type="button">重新读取账号</button>
+    <button class="primary" id="go" type="button">导出</button>
+  </div>
+  <p class="msg" id="msg"></p>
+</div>
+
+<div class="result" id="result" hidden></div>
+<p class="note" id="foot"></p>
+
+<script>
+// The window's kernel wants this page to say hello, and normally the
+// shutter's bridge does it. When the page folder's scripts are blocked
+// (some builds' page policy names no source), the frame arrives here
+// through index.html's refresh with nobody having said hello, and the
+// window shows "this page stopped working" 10 seconds later. Saying it
+// from here costs one message and keeps the page.
+(() => {
+  try {
+    if (window.parent && window.parent !== window) {
+      // a few tries: the window may not be listening yet while it draws
+      const hello = () => parent.postMessage({ magpie: 1, id: 1, method: "hello", params: {} }, "*");
+      for (const ms of [0, 400, 1200, 3000, 6000, 9000]) setTimeout(hello, ms);
+      addEventListener("message", () => { /* the window's answers: this page needs none */ });
+    }
+  } catch { /* not framed */ }
+})();
+</script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    providers: [], selected: new Set(), folded: new Set(), q: "",
+    busy: false, cli: null, magpieDir: "", sourceError: "",
+    result: null, error: "", errorKind: "",
+  };
+
+  const accountsOf = (g) => (g.accounts || []);
+  const migratable = (g) => accountsOf(g).filter((a) => a.migratable);
+  const allMigratable = () => state.providers.flatMap(migratable);
+  const total = () => allMigratable().length;
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  };
+
+  const TOKEN = (document.querySelector('meta[name="ab-token"]') || {}).content || "";
+
+  async function api(path, body) {
+    const res = await fetch(path, body === undefined
+      ? { headers: { "X-AB-Token": TOKEN } }
+      : {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-AB-Token": TOKEN },
+        body: JSON.stringify(body),
+      });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+    if (!res.ok) {
+      const e = new Error((data && data.error) || ("HTTP " + res.status));
+      e.status = res.status;
+      throw e;
+    }
+    return data;
+  }
+
+  function matches(g, a) {
+    if (!state.q) return true;
+    const q = state.q.toLowerCase();
+    const hay = [g.providerName, g.providerId, a.displayName, a.recordType === "plugin" ? "plugin" : "builtin"]
+      .join(" ").toLowerCase();
+    return hay.includes(q);
+  }
+
+  function visibleGroups() {
+    return state.providers
+      .map((g) => ({ ...g, accounts: accountsOf(g).filter((a) => matches(g, a)) }))
+      .filter((g) => g.accounts.length);
+  }
+
+  function toggleVendor(g, on) {
+    for (const a of migratable(g)) {
+      if (!matches(g, a)) continue;
+      if (on) state.selected.add(a.accountId);
+      else state.selected.delete(a.accountId);
+    }
+    render();
+  }
+
+  function renderList() {
+    const list = $("list");
+    list.replaceChildren();
+    const shown = visibleGroups();
+    if (!shown.length) {
+      list.append(el("div", "empty", state.providers.length ? "没有匹配的账号" : "这台机器上还没有登录信息"));
+      return;
+    }
+    for (const g of shown) {
+      const all = migratable(g);
+      const chosen = all.filter((a) => state.selected.has(a.accountId));
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = all.length > 0 && chosen.length === all.length;
+      box.indeterminate = chosen.length > 0 && chosen.length < all.length;
+      box.disabled = !all.length;
+      box.setAttribute("aria-label", g.providerName);
+      box.addEventListener("change", () => toggleVendor(g, box.checked));
+
+      const fold = el("button", "fold", state.folded.has(g.providerId) ? "▸" : "▾");
+      fold.type = "button";
+      fold.addEventListener("click", () => {
+        if (state.folded.has(g.providerId)) state.folded.delete(g.providerId);
+        else state.folded.add(g.providerId);
+        render();
+      });
+
+      const head = el("div", "vrow");
+      head.append(box, el("span", "vname", g.providerName));
+      if (g.providerId && g.providerId.toLowerCase() !== String(g.providerName).toLowerCase()) {
+        head.append(el("span", "vid", g.providerId));
+      }
+      head.append(el("span", "grow"), el("span", "vcount", String(all.length || accountsOf(g).length)), fold);
+
+      const wrap = el("div", "vendor");
+      wrap.append(head);
+
+      if (!state.folded.has(g.providerId)) {
+        const body = el("div", "accounts");
+        for (const a of accountsOf(g)) {
+          const row = el("div", "arow" + (a.migratable ? "" : " blocked"));
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = state.selected.has(a.accountId);
+          cb.disabled = !a.migratable;
+          cb.setAttribute("aria-label", a.displayName);
+          cb.addEventListener("change", () => {
+            if (cb.checked) state.selected.add(a.accountId);
+            else state.selected.delete(a.accountId);
+            render();
+          });
+          row.append(cb, el("span", "aname", a.displayName));
+          row.append(el("span", "chip", a.recordType === "plugin" ? "插件" : "内置"));
+          if (!a.migratable) {
+            row.append(el("span", "grow"), el("span", "reason", reasonText(a.blockedReason)));
+          } else {
+            const eye = el("button", "eye", "显示");
+            eye.type = "button";
+            eye.title = "显示完整账号名";
+            eye.addEventListener("click", async () => {
+              try {
+                const r = await api("api/reveal", { accountId: a.accountId });
+                eye.replaceWith(el("span", "aname", r.displayName || a.displayName));
+              } catch (e) { setError(e.message); }
+            });
+            row.append(el("span", "grow"), eye);
+          }
+          body.append(row);
+        }
+        wrap.append(body);
+      }
+      list.append(wrap);
+    }
+  }
+
+  const REASONS = {
+    PLUGIN_PROXY_RECORD: "插件账号的本机记录（凭证随插件账号走）",
+    ROTATING_REFRESH_TOKEN: "一次性刷新令牌，两机同用会互相踢下线",
+    AGENT_NATIVE_LOGIN: "Agent 自己的登录，不随备份走",
+    SEPARATE_AGENT_HOME: "独立 Agent 目录里的登录",
+    HIDDEN_ACCOUNT: "已移除（隐藏）的账号",
+    RETIRED_BUILTIN: "已退休的内置实现",
+    AMBIGUOUS_IDENTITY: "身份不明确，无法安全对应",
+    NOT_CARRIED: "不随备份走",
+  };
+  const reasonText = (code) => REASONS[code] || "不随备份走";
+
+  function renderCounts() {
+    $("count").textContent = `已选 ${state.selected.size}/${total()}`;
+    $("go").textContent = $("optSignIns").checked
+      ? (state.selected.size ? `导出 · ${state.selected.size} 个账号` : "导出")
+      : "导出";
+    $("go").disabled = state.busy || ($("optSignIns").checked && state.selected.size === 0);
+    $("picker").hidden = !$("optSignIns").checked;
+    const note = $("pickerNote");
+    if ($("optSignIns").checked && state.providers.length) {
+      const blocked = state.providers.flatMap(accountsOf).filter((a) => !a.migratable).length;
+      note.textContent = blocked
+        ? `灰掉的 ${blocked} 行列出来但不带走，后面写着原因。`
+        : "全部账号都可以勾选。";
+    } else {
+      note.textContent = "";
+    }
+  }
+
+  function render() {
+    renderList();
+    renderCounts();
+    if (state.result) {
+      const r = state.result;
+      const box = $("result");
+      box.hidden = false;
+      box.replaceChildren();
+      box.append(el("strong", "", "已导出"));
+      const p = el("div", "path", r.path);
+      box.append(p);
+      const s = r.signIns || {};
+      const tot = s.total != null ? s.total : (s.logins || 0) + (s.plugins || 0);
+      box.append(el("div", "nums",
+        `登录信息 ${tot} 个（内置 ${s.logins || 0} · 插件 ${s.plugins || 0}${s.codex ? " · 含 Codex 当前登录" : ""}）`
+        + ` · 供应商 ${r.providers || 0} 个`
+        + ` · 密钥${r.keys ? "含" : "不含"} · 资源库${r.library ? "含" : "不含"}`
+        + ` · ${Math.round((r.bytes || 0) / 1024)} KB`));
+      box.append(el("div", "note",
+        "在 Magpie「设置 → 同步与备份 → 导入」选这个文件，输入同一口令即可；文件里只有你勾的账号。"));
+    } else {
+      $("result").hidden = true;
+    }
+  }
+
+  function setError(text, kind) {
+    state.error = text || "";
+    state.errorKind = kind || "";
+    const m = $("msg");
+    m.textContent = state.error;
+    m.className = "msg" + (state.error ? (state.errorKind === "warn" ? " warn" : " bad") : "");
+  }
+
+  async function loadAccounts() {
+    const data = await api("api/accounts");
+    state.providers = data.providers || [];
+    state.selected = new Set(allMigratable().map((a) => a.accountId));
+    render();
+  }
+
+  async function loadState() {
+    const st = await api("api/state");
+    state.cli = st.cli || null;
+    state.magpieDir = st.magpieDir || "";
+    state.sourceError = st.sourceStatus === "ok" ? "" : st.error;
+    const foot = $("foot");
+    if (state.sourceError) {
+      foot.className = "msg bad";
+      foot.textContent = "读不到登录信息：" + state.sourceError;
+    } else if (!state.cli) {
+      foot.className = "msg warn";
+      foot.textContent = "没找到 magpie 命令行，导出会失败。可以在插件设置里把 magpieBin 指向 magpie 的可执行文件；已找过的位置："
+        + (st.cliTried || []).join("、");
+    } else {
+      foot.className = "note";
+      foot.textContent = `数据目录：${state.magpieDir}　命令行：${state.cli.path}`;
+    }
+  }
+
+  $("q").addEventListener("input", (e) => { state.q = e.target.value.trim(); render(); });
+  $("all").addEventListener("click", () => {
+    for (const g of visibleGroups()) for (const a of migratable(g)) state.selected.add(a.accountId);
+    render();
+  });
+  $("none").addEventListener("click", () => {
+    for (const g of visibleGroups()) for (const a of migratable(g)) state.selected.delete(a.accountId);
+    render();
+  });
+  for (const id of ["optKeys", "optLibrary", "optSignIns"]) {
+    $(id).addEventListener("change", render);
+  }
+  $("reload").addEventListener("click", async () => {
+    setError("");
+    state.result = null;
+    try { await loadAccounts(); await loadState(); }
+    catch (e) { setError(e.message); }
+  });
+
+  $("go").addEventListener("click", async () => {
+    if (state.busy) return;
+    const pass = $("pass1").value;
+    const again = $("pass2").value;
+    if (pass.length < 8) return setError("口令至少 8 个字符");
+    if (pass !== again) return setError("两次输入的口令不一样");
+    const signIns = $("optSignIns").checked;
+    if (signIns && !state.selected.size) return setError("至少勾一个账号");
+    setError("");
+    state.busy = true;
+    state.result = null;
+    render();
+    const go = $("go");
+    const label = go.textContent;
+    go.textContent = "正在导出…";
+    try {
+      const body = {
+        passphrase: pass,
+        keys: $("optKeys").checked,
+        library: $("optLibrary").checked,
+        signIns,
+      };
+      if (signIns) {
+        const byVendor = new Map();
+        for (const g of state.providers) {
+          for (const a of migratable(g)) {
+            if (!state.selected.has(a.accountId)) continue;
+            if (!byVendor.has(g.providerId)) byVendor.set(g.providerId, []);
+            byVendor.get(g.providerId).push(a.accountId);
+          }
+        }
+        body.providerIds = [...byVendor.keys()];
+        body.accountIds = [...state.selected];
+      }
+      const r = await api("api/export", body);
+      state.result = r;
+      $("pass1").value = "";
+      $("pass2").value = "";
+    } catch (e) {
+      setError(e.message, e.status === 409 ? "warn" : "");
+    } finally {
+      state.busy = false;
+      go.textContent = label;
+      render();
+    }
+  });
+
+  (async () => {
+    try {
+      await loadState();
+      await loadAccounts();
+    } catch (e) {
+      setError(e.message);
+    }
+  })();
+})();
+</script>
+</body>
+</html>
