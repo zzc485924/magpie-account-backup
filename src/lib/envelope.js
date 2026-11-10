@@ -34,7 +34,8 @@ async function aead(pass, e) {
 }
 
 export async function sealJSON(payload, pass) {
-  if (String(pass || "").length < 8) throw err("SHORT_PASSPHRASE", "口令至少 8 个字符");
+  // No length rule of ours: the passphrase is the user's call, empty
+  // included (magpie's own CLI accepts whatever is piped to it).
   const plain = Buffer.from(JSON.stringify(payload), "utf8");
   if (plain.length > MAX_PLAIN) throw err("TOO_LARGE", "备份内容太大");
   const salt = crypto.randomBytes(SALT_LEN);

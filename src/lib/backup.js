@@ -158,7 +158,7 @@ export function tilde(p) {
 //
 // `runner` is for tests: it stands in for magpie's CLI (same arguments,
 // same staged file path) so the pipeline can be checked without one.
-export async function exportBackup({ dir, options, pass, keys, library, signIns, identities, runner }) {
+export async function exportBackup({ dir, options, pass, keys, library, signIns, identities, runner, save }) {
   const opts = options || {};
   const cli = runner ? { path: "runner", how: "test" } : findCLI(opts, dir).found;
   if (!cli) {
@@ -208,13 +208,21 @@ export async function exportBackup({ dir, options, pass, keys, library, signIns,
       counts = { logins: 0, plugins: 0, codex: false };
     }
 
-    const out = freeName(downloadsDir(opts), `magpie-${today()}`, ".magpie-backup");
+    const fileName = path.basename(freeName(downloadsDir(opts), `magpie-${today()}`, ".magpie-backup"));
     const bytes = await sealJSON(payload, pass);
-    fs.writeFileSync(out, bytes, { mode: 0o600 });
-    try { fs.chmodSync(out, 0o600); } catch { /* Windows ACL */ }
+    // A server's own Downloads folder is no use to a browser somewhere
+    // else: saveOnServer=false leaves the file only on its way out.
+    let out = "";
+    if (save !== false) {
+      out = path.join(downloadsDir(opts), fileName);
+      fs.writeFileSync(out, bytes, { mode: 0o600 });
+      try { fs.chmodSync(out, 0o600); } catch { /* Windows ACL */ }
+    }
 
     return {
-      path: tilde(out),
+      path: out ? tilde(out) : "",
+      fileName,
+      data: bytes,
       bytes: bytes.length,
       ms: Date.now() - started,
       signIns: counts,

@@ -1,6 +1,6 @@
 {
   "name": "magpie-account-backup",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Export a .magpie-backup with only the subscription and plugin sign-ins you pick",
   "type": "module",
   "main": "src/host.js",

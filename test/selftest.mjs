@@ -102,7 +102,11 @@ function at(port, p, body, headers = {}, token = null) {
         const text = Buffer.concat(chunks).toString("utf8");
         let parsed = null;
         try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
-        resolve({ status: res.statusCode, data: parsed, text, cors: res.headers["access-control-allow-origin"] });
+        resolve({
+          status: res.statusCode, data: parsed, text,
+          cors: res.headers["access-control-allow-origin"],
+          headers: res.headers, raw: Buffer.concat(chunks),
+        });
       });
     });
     req.on("error", reject);
@@ -131,8 +135,9 @@ async function testCatalog() {
   assert.ok(kiro.every((r) => !r.migratable), "a retired built-in was offered");
   assert.ok(kiro.some((r) => r.blockedReason === BLOCKED.RETIRED));
 
-  const proxy = records.filter((r) => r.blockedReason === BLOCKED.PROXY);
-  assert.equal(proxy.length, 1, "the plugin: proxy row isn't listed as one");
+  // a plugin:<id> row is magpie's own bookkeeping: never listed at all
+  assert.equal(records.filter((r) => String(r.providerId).startsWith("plugin:")).length, 0,
+    "a plugin: row was listed");
 
   const zcode = byProvider(records, "zcode");
   assert.equal(zcode.length, 2);
@@ -221,7 +226,10 @@ async function testEnvelope() {
   tampered.iterations = 100000;
   await assert.rejects(() => openJSON(Buffer.from(JSON.stringify(tampered)), PASS), /口令不对|损坏/);
 
-  await assert.rejects(() => sealJSON(payload, "short"), /至少 8/);
+  // no length rule of ours: a one-character passphrase seals and opens
+  const shortSealed = await sealJSON(payload, "x");
+  assert.equal((await openJSON(shortSealed, "x")).signIns.logins.length, 2);
+  await assert.rejects(() => openJSON(shortSealed, "y"), /口令不对/);
 }
 
 async function testService(dir) {
@@ -277,6 +285,14 @@ async function testService(dir) {
   assert.equal(r.status, 200, r.text);
   assert.equal(r.data.signIns.plugins, 1, r.text);
   assert.equal(r.data.signIns.logins, 0, r.text);
+  assert.match(String(r.data.download || ""), /^file\/[0-9a-f]{32}$/, "no download link");
+  // the link is the whole capability, good once
+  const dl = await at(port, "/" + r.data.download);
+  assert.equal(dl.status, 200, "the download link didn't answer");
+  assert.equal(dl.headers["content-disposition"]?.includes("attachment"), true, "not an attachment");
+  assert.ok(Buffer.from(dl.raw).length > 100, "the download is empty");
+  const again = await at(port, "/" + r.data.download);
+  assert.equal(again.status, 404, "the download link worked twice");
   const file = path.join(outDir, path.basename(r.data.path));
   assert.ok(fs.existsSync(file), "no file was written");
   const opened = await openJSON(fs.readFileSync(file), PASS);

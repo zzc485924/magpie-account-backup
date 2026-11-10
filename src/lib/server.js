@@ -122,6 +122,16 @@ export function startService({ dir, options } = {}) {
   const wanted = Number(opts.port);
   const port = Number.isInteger(wanted) && wanted >= 1 && wanted <= 65535 ? wanted : 39872;
   const audit = [];
+  // A sealed export on its way to the reader's own computer: the id in the
+  // URL is the whole capability, good once, for ten minutes. It is how a
+  // magpie on a server hands a backup to the browser rather than leaving it
+  // in that server's Downloads folder.
+  const handovers = new Map();
+  const HANDOVER_TTL = 10 * 60 * 1000;
+  const purgeHandovers = () => {
+    const now = Date.now();
+    for (const [k, v] of handovers) if (now - v.at > HANDOVER_TTL) handovers.delete(k);
+  };
 
   const token = crypto.randomBytes(24).toString("hex");
   const server = http.createServer(async (req, res) => {
@@ -143,6 +153,22 @@ export function startService({ dir, options } = {}) {
       }
 
       if (method === "GET" && (p === "/" || p === "/app.html")) return serveHTML(res, port, token);
+
+      const handover = /^\/file\/([0-9a-f]{32})$/.exec(p);
+      if (method === "GET" && handover) {
+        purgeHandovers();
+        const hit = handovers.get(handover[1]);
+        if (!hit) return fail(res, 404, "这个下载链接已经用过或已过期，重新导出一次");
+        handovers.delete(handover[1]); // one time
+        res.writeHead(200, {
+          "Content-Type": "application/octet-stream",
+          "Content-Disposition": `attachment; filename="${hit.name}"`,
+          "Content-Length": hit.data.length,
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+        });
+        return res.end(hit.data);
+      }
 
       if (p.startsWith("/api/")) {
         const given = String(req.headers["x-ab-token"] || "");
@@ -188,7 +214,6 @@ export function startService({ dir, options } = {}) {
         try {
           const body = await bodyJSON(req);
           const pass = String(body.passphrase || "");
-          if (pass.length < 8) return fail(res, 400, "口令至少 8 个字符");
           const signIns = body.signIns !== false;
           const keys = body.keys !== false;
           const library = body.library !== false;
@@ -205,8 +230,12 @@ export function startService({ dir, options } = {}) {
 
           const out = await exportBackup({
             dir: magpieDir, options: opts, pass, keys, library, signIns, identities,
+            save: opts.saveOnServer !== false,
             runner: typeof opts.cliRunner === "function" ? opts.cliRunner : undefined,
           });
+          const id = crypto.randomBytes(16).toString("hex");
+          handovers.set(id, { data: out.data, name: out.fileName, at: Date.now() });
+          delete out.data;
           audit.push({
             at: new Date().toISOString(), action: "export",
             accounts: out.signIns.total, providers: out.providers,
@@ -216,6 +245,10 @@ export function startService({ dir, options } = {}) {
           return json(res, 200, {
             ...out,
             signIns: { ...si, total: (si.logins || 0) + (si.plugins || 0) },
+            // relative to this page: the browser opens it top-level and the
+            // file lands on the reader's computer, not the server's disk
+            download: "file/" + id,
+            savedOnServer: opts.saveOnServer !== false,
             picked: pickedReport,
           });
         } finally {

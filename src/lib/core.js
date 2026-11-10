@@ -215,6 +215,10 @@ export function catalog(dir, options) {
   const out = [];
 
   for (const l of logins) {
+    // A plugin:<id> row is magpie's own bookkeeping for a plugin account —
+    // order, on/off, the label — not an account to carry: its credential is
+    // in plugin-auth.json, and the row is rebuilt here from that. Not shown.
+    if (String(l.agent || "").startsWith("plugin:")) continue;
     const migratable = carried(l) && !retired.has(l.agent);
     const internalID = loginRecID(l);
     out.push({

@@ -154,7 +154,7 @@
 <div class="card">
   <h2>口令</h2>
   <div class="grid2">
-    <label class="field"><span>口令（至少 8 个字符）</span><input type="password" id="pass1" autocomplete="new-password"></label>
+    <label class="field"><span>口令（长度不限，留空也可以）</span><input type="password" id="pass1" autocomplete="new-password"></label>
     <label class="field"><span>再输入一次</span><input type="password" id="pass2" autocomplete="new-password"></label>
   </div>
   <div class="bar">
@@ -364,8 +364,7 @@
       box.hidden = false;
       box.replaceChildren();
       box.append(el("strong", "", "已导出"));
-      const p = el("div", "path", r.path);
-      box.append(p);
+      if (r.savedOnServer && r.path) box.append(el("div", "path", r.path));
       const s = r.signIns || {};
       const tot = s.total != null ? s.total : (s.logins || 0) + (s.plugins || 0);
       box.append(el("div", "nums",
@@ -373,6 +372,42 @@
         + ` · 供应商 ${r.providers || 0} 个`
         + ` · 密钥${r.keys ? "含" : "不含"} · 资源库${r.library ? "含" : "不含"}`
         + ` · ${Math.round((r.bytes || 0) / 1024)} KB`));
+      if (r.download) {
+        const href = new URL(r.download, location.href).href;
+        const line = el("div", "path");
+        const a = el("a", "", "下载到本机（一次性链接，10 分钟内有效）");
+        a.href = href;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.style.color = "var(--accent)";
+        line.append(a);
+        box.append(line);
+        // A sandboxed frame may not start a download: the same address,
+        // opened top-level, always works, so it is given to copy too.
+        const copyRow = el("div", "bar");
+        const field = document.createElement("input");
+        field.type = "text";
+        field.readOnly = true;
+        field.value = href;
+        field.style.flex = "1 1 240px";
+        const copy = el("button", "ghost", "复制地址");
+        copy.type = "button";
+        copy.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(href);
+            copy.textContent = "已复制";
+          } catch {
+            field.select();
+            document.execCommand?.("copy");
+            copy.textContent = "已复制";
+          }
+        };
+        copyRow.append(field, copy);
+        box.append(copyRow);
+        box.append(el("div", "note",
+          "点了没反应、或页面在沙箱里点不动下载，就把上面这行地址复制到浏览器新标签打开；"
+          + "链接只能用一次。" + (r.savedOnServer ? "" : "服务器上不保留副本。")));
+      }
       box.append(el("div", "note",
         "在 Magpie「设置 → 同步与备份 → 导入」选这个文件，输入同一口令即可；文件里只有你勾的账号。"));
     } else {
@@ -437,7 +472,6 @@
     if (state.busy) return;
     const pass = $("pass1").value;
     const again = $("pass2").value;
-    if (pass.length < 8) return setError("口令至少 8 个字符");
     if (pass !== again) return setError("两次输入的口令不一样");
     const signIns = $("optSignIns").checked;
     if (signIns && !state.selected.size) return setError("至少勾一个账号");
